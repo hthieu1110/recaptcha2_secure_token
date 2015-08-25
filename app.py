@@ -25,7 +25,7 @@ unpad = lambda s: s[0:-ord(s[-1])]
 
 
 def generate_stoken():
-    # Build json token
+    """Core function for generating recaptcha2 secure token"""
     json_token = json.dumps({
         "session_id": str(uuid4()),
         "ts_ms": str(time())
