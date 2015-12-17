@@ -36,9 +36,7 @@ def generate_stoken():
     # Encrypt json token by AES/ECB/PKCS5Padding
     # Key used for AES crypto
     aes_key = sha1(PRIVATE_KEY).digest()[:BLOCK_SIZE]
-    #print aes_key
     # AES use block so we need to pad input for having valid block
-    #print padder(json_token)
     padded = pad(json_token)
     
     # Encrypt padded string by AES crypto in mode ECB
