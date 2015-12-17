@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import requests
-from os import urandom
 import json
 from hashlib import sha1
 from Crypto.Cipher import AES
 from uuid import uuid4
 from time import time
 from base64 import urlsafe_b64encode
+import os
 
 from flask import Flask, render_template, request, jsonify
 
@@ -14,39 +14,36 @@ app = Flask(__name__, template_folder='')
 
 
 # Get key pair from: https://www.google.com/recaptcha/admin#list
-PRIVATE_KEY = '---'
-PUBLIC_KEY = '---'
+PRIVATE_KEY = os.environ["PRIVATE_KEY"]
+PUBLIC_KEY = os.environ["PUBLIC_KEY"]
 CAPTCHA_API_URL = 'https://www.google.com/recaptcha/api/siteverify'
 
 # Tool functions for padding, unpadding string
 BLOCK_SIZE = 16
 pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
 unpad = lambda s: s[0:-ord(s[-1])]
-
+    
 
 def generate_stoken():
     """Core function for generating recaptcha2 secure token"""
+    # The json have empty spaces inside the string, we have remove it,
+    # and the timestamp we need in milliseconds
     json_token = json.dumps({
         "session_id": str(uuid4()),
-        "ts_ms": str(time())
-    })
+        "ts_ms": int(time()*1000)
+    }).replace(" ", "")
 
-    # Encrypt json token by AES/CBC/PKCS5Padding
+    # Encrypt json token by AES/ECB/PKCS5Padding
     # Key used for AES crypto
-    aes_key = sha1(PRIVATE_KEY).hexdigest()[:BLOCK_SIZE]
-
+    aes_key = sha1(PRIVATE_KEY).digest()[:BLOCK_SIZE]
     # AES use block so we need to pad input for having valid block
     padded = pad(json_token)
-
-    # Random string, use for AES in mode CBC
-    # https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Cipher_Block_Chaining_.28CBC.29
-    iv = urandom(BLOCK_SIZE)
-
-    # Encrypt padded string by AES cypto
-    encrypted_str = AES.new(aes_key, AES.MODE_CBC, iv).encrypt(padded)
-
-    # Generate base64 string with urlsafe mode
-    base64_str = urlsafe_b64encode(unpad(encrypted_str))
+    
+    # Encrypt padded string by AES crypto in mode ECB
+    encrypted_str = AES.new(aes_key, AES.MODE_ECB).encrypt(padded)
+    
+    # Generate base64 string with urlsafe mode, and remove '=' caracteres
+    base64_str = urlsafe_b64encode(encrypted_str).replace("=", "")
     return base64_str
 
 
@@ -67,6 +64,5 @@ def check():
     result = json.loads(captcha_resp.content)
     return jsonify(result)
 
+
 app.run('localhost', port=1984, debug=True)
-
-
